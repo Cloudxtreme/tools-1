@@ -10,6 +10,7 @@ traversed pages.
 import re
 import sys
 import time
+import math
 import urllib2
 import urlparse
 import optparse
@@ -18,7 +19,6 @@ from BeautifulSoup import BeautifulSoup
 import spider
 import pymills
 from pymills.web import escape
-from pymills.misc import duration
 from pymills.datatypes import Queue
 from pymills import __version__ as systemVersion
 
@@ -46,9 +46,8 @@ class Crawler(object):
 		followed = [self.root]
 
 		n = 0
-		done = False
 
-		while not done:
+		while not urls.empty():
 			n += 1
 			url = urls.pop()
 			if url not in followed:
@@ -64,7 +63,7 @@ class Crawler(object):
 								self.links += 1
 								urls.push(url)
 						if n > self.depth and self.depth > 0:
-							done = True
+							break
 				except Exception, error:
 					print "Warning: Can't process url '%s'" % url
 
@@ -114,7 +113,6 @@ class Fetcher(object):
 			for tag in tags:
 				try:
 					href = tag["href"]
-					print "href: %s" % href
 					if href is not None:
 						url = urlparse.urljoin(self.url, escape(href))
 						if url not in self:
@@ -172,7 +170,8 @@ def main():
 	sTime = time.time()
 
 	print "Crawling %s (Max Depth: %d)" % (url, depth)
-	crawler = Crawler(url, depth).crawl()
+	crawler = Crawler(url, depth)
+	crawler.crawl()
 
 	eTime = time.time()
 	tTime = eTime - sTime
@@ -180,8 +179,7 @@ def main():
 	print "Found:    %d" % crawler.links
 	print "Followed: %d" % crawler.followed
 	print "Stats:    (%d/s after %0.2fs)" % (
-			crawler.links, int(math.ceil(float(crawler.links) / tTime)), tTime)
-	print "Duration: %d (%s+%s:%s:%s)" % duration(tTime)
+			int(math.ceil(float(crawler.links) / tTime)), tTime)
 
 if __name__ == "__main__":
 	main()
