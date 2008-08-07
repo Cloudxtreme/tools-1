@@ -1,0 +1,112 @@
+#!/usr/bin/env python
+
+"""trac
+
+Trac command-line user tool using XML-RPC
+to communicate with Trac instances for editing
+wiki pages, tickets, etc.
+
+Usage: trac <options> [<args>]
+"""
+
+import os
+import readline
+import optparse
+import tempfile
+import xmlrpclib
+from cStringIO import StringIO
+
+__version__ = "0.1"
+
+USAGE = "%prog <options> [<args>]"
+VERSION = "%prog v" + __version__
+
+###
+### Functions
+###
+
+def parse_options():
+	"""parse_options() -> opts, args
+
+	Parse any command-line options given returning both
+	the parsed options and arguments.
+	"""
+
+	parser = optparse.OptionParser(usage=USAGE, version=VERSION)
+
+	parser.add_option("-l", "--list",
+			action="store_true", default=False, dest="list",
+			help="List wiki all pages")
+	parser.add_option("-e", "--edit",
+			action="store", default=None, dest="edit",
+			help="Edit a wiki page")
+
+	opts, args = parser.parse_args()
+
+	return opts, args
+
+###
+### Components
+###
+
+class Trac(object):
+
+	uri = None
+
+	def __init__(self, uri=None):
+		self.uri = os.getenv("TRACURL", uri)
+
+		self.server = xmlrpclib.ServerProxy(self.uri)
+
+	def pages(self):
+		pages = self.server.wiki.getAllPages()
+		pages.sort()
+		return pages
+
+	def edit(self, page):
+		editor = os.getenv("EDITOR", "vim")
+		user = os.getenv("USER", "anonymous")
+
+		info = self.server.wiki.getPageInfo(page)
+		buffer = tempfile.NamedTemporaryFile(suffix=".trac")
+
+		if type(info) == dict:
+			buffer.write(self.server.wiki.getPage(page))
+			buffer.flush()
+
+		os.system("%s %s" % (editor, buffer.name))
+		buffer.flush()
+		buffer.seek(0)
+		content = buffer.read()
+		buffer.close()
+
+		comment = raw_input("Comment: ")
+
+		attrs = {
+				"readonly": False,
+				"author": user,
+				"comment": comment}
+
+		self.server.wiki.putPage(page, content, attrs)
+
+###
+### Main
+###
+
+def main():
+	opts, args = parse_options()
+
+	trac = Trac()
+
+	if opts.list:
+		for page in trac.pages():
+			print page
+	elif opts.edit:
+		trac.edit(opts.edit)
+
+###
+### Entry Point
+###
+
+if __name__ == "__main__":
+	main()

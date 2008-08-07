@@ -1,0 +1,59 @@
+#!/usr/bin/env python
+
+"""dos2unix
+
+Command-line tool to convert MS-DOS/Windows
+style line endings to UNIX style line endings.
+Converts CRLF to LF
+
+Usage: trac [options] <file>
+"""
+
+import sys
+import optparse
+from cStringIO import StringIO
+
+__version__ = "0.1"
+
+USAGE = "%prog [options] <file>"
+VERSION = "%prog v" + __version__
+
+def parse_options():
+	"""parse_options() -> opts, args
+
+	Parse any command-line options given returning both
+	the parsed options and arguments.
+	"""
+
+	parser = optparse.OptionParser(usage=USAGE, version=VERSION)
+
+	opts, args = parser.parse_args()
+
+	if len(args) < 1:
+		parser.print_help()
+		raise SystemExit, 1
+
+	return opts, args
+
+def dos2unix(file):
+	r = open(file, "rU")
+	w = StringIO()
+	for line in r:
+		line = line.strip()
+		w.write("%s\n" % line)
+	r.close()
+	w.flush()
+	s = w.getvalue()
+	w.close()
+
+	w = open(file, "w")
+	w.write(s)
+	w.close()
+
+def main():
+	opts, args = parse_options()
+
+	dos2unix(args[0])
+
+if __name__ == "__main__":
+	main()

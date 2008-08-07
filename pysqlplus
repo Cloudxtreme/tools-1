@@ -1,0 +1,144 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import time
+import inspect
+import readline
+from StringIO import StringIO
+
+from pymills.io import Input
+from pymills.db import newDB
+from pymills.table import Table, Header, Row, Cell
+
+def doQuery(db, sql):
+	try:
+		stime = time.time()
+		records = db.do(sql.strip("\r\n\t ;"))
+		etime = time.time()
+		ttime = "%0.02f" % (etime - stime)
+
+		if records == []:
+			return "0 rows in set (%s sec)" % ttime
+		else:
+			x = records[0]
+			headers = []
+			for k, v in x.iteritems():
+				headers.append(Header(k,
+					align="left",
+					width=max(
+						max([len(str(x[k])) for x in records]) + 2,
+						len(k) + 2)))
+			rows = []
+			for record in records:
+				rows.append(Row([Cell(x) for x in record.values()]))
+			table = Table(headers, rows)
+			table.refresh()
+			s = StringIO()
+			s.write(str(table))
+			if len(rows) > 1:
+				s.write("\n%d rows in set (%s sec)" % (len(rows), ttime))
+			else:
+				s.write("\n1 row in set (%s sec)" % ttime)
+			r = s.getvalue()
+			s.close()
+			return r
+	except Exception, e:
+		return "ERROR: %s" % e
+
+class CommandHandler:
+
+	HELP = 0
+	QUIT = 1
+
+	def __init__(self, help, prompt, commands,
+			db):
+		self.help = help
+		self.prompt = prompt
+		self.commands = commands
+		self.db = db
+	
+	def _pos(self, command):
+		for a, b in self.commands:
+			if a == command:
+				return self.commands.index((a, b))
+		return -1
+		
+	def execute(self, sql):
+		print doQuery(self.db, sql)
+
+	def process(self):
+		input = Input(True)
+		multiLine = False
+		try:
+			s = input.read(self.prompt)
+		except KeyboardInterrupt:
+			return
+		while not s == "":
+			if s is not None:
+				tokens = s.split(" ")
+				command = tokens[0]
+				args = tokens[1:]
+
+				pos = self._pos(command)
+				if pos > -1:
+					a, b = self.commands[pos]
+					if inspect.isfunction(b):
+						b(args)
+					elif inspect.isclass(b):
+						c = b(args)
+						c.run()
+					elif b == self.QUIT:
+						sys.exit(0)
+					elif b == self.HELP:
+						print self.help
+				else:
+					if not s[-1:] == ";":
+						multiLine = True
+					else:
+						multiLine = False
+						self.execute(s)
+
+			if multiLine:
+				s += "\n%s" % input.read("... ")
+			else:
+				try:
+					s = input.read(self.prompt)
+				except KeyboardInterrupt:
+					return
+
+def main(uri, sql=None):
+	db = newDB(uri)
+
+	if sql is not None:
+		print doQuery(db, sql)
+		return
+
+	help = "Help me! I'm stupid!"
+
+	commands = []
+	commands.append(("quit", 
+			CommandHandler.QUIT))
+	commands.append(("help", 
+			CommandHandler.HELP))
+
+	prompt = "pysqlplus: $ "
+
+	command = CommandHandler(help, prompt,
+			commands, db)
+
+	history_file = os.path.expandvars("$HOME/.reportgen_console_history")
+
+	try:
+		if os.path.exists(history_file):
+			readline.read_history_file(history_file)
+		command.process()
+	finally:
+		readline.write_history_file(history_file)
+
+if __name__ == "__main__":
+	if len(sys.argv) > 1:
+		main(*sys.argv[1:2])
+	else:
+		print "usage: pysqlplus uri [sql]"
+		raise SystemExit, 1
