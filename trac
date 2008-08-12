@@ -68,7 +68,7 @@ class Trac(object):
 		user = os.getenv("USER", "anonymous")
 
 		info = self.server.wiki.getPageInfo(page)
-		buffer = tempfile.NamedTemporaryFile(suffix=".trac")
+		buffer = tempfile.NamedTemporaryFile(suffix=".wiki")
 
 		if type(info) == dict:
 			buffer.write(self.server.wiki.getPage(page))
