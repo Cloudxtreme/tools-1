@@ -15,11 +15,28 @@ import optparse
 import tempfile
 import xmlrpclib
 from cStringIO import StringIO
+from traceback import format_exc
 
 __version__ = "0.1"
 
 USAGE = "%prog <options> [<args>]"
 VERSION = "%prog v" + __version__
+
+###
+### Errors
+###
+
+class Error(Exception): pass
+
+class NotFound(Error):
+
+	def __init__(self, page):
+		super(NotFound, self).__init__()
+
+		self.page = page
+
+	def __repr__(self):
+		return "NotFound: %s not found" % self.page
 
 ###
 ### Functions
@@ -40,6 +57,9 @@ def parse_options():
 	parser.add_option("-e", "--edit",
 			action="store", default=None, dest="edit",
 			help="Edit a wiki page")
+	parser.add_option("-s", "--save",
+			action="store", default=None, dest="save",
+			help="Save a wiki page locally")
 
 	opts, args = parser.parse_args()
 
@@ -63,20 +83,35 @@ class Trac(object):
 		pages.sort()
 		return pages
 
+	def _getPage(self, page):
+		info = self.server.wiki.getPageInfo(page)
+
+		if not type(info) == dict:
+			raise NotFound(page)
+
+		try:
+			content = self.server.wiki.getPage(page)
+		except xmlrpclib.Fault, fault:
+			raise
+
+		return content
+
+	def _savePage(self, page, content, **kwargs):
+		try:
+			self.server.wiki.putPage(page, content, kwargs)
+		except xmlrpclib.Fault, fault:
+			raise
+
 	def edit(self, page):
 		editor = os.getenv("EDITOR", "vim")
 		user = os.getenv("USER", "anonymous")
 
-		info = self.server.wiki.getPageInfo(page)
-		content = self.server.wiki.getPage(page)
-		content = content.encode("ascii", "ignore")
-		buffer = tempfile.NamedTemporaryFile(suffix=".wiki")
+		content = self._getPage(page)
 
-		if type(info) == dict:
-			buffer.write(content)
-			buffer.flush()
-		else:
-			print "Page Not Found. Creating..."
+		buffer = tempfile.NamedTemporaryFile(suffix=".wiki")
+		buffer.write(content)
+		buffer.flush()
+		buffer.seek(0)
 
 		os.system("%s %s" % (editor, buffer.name))
 		buffer.flush()
@@ -86,12 +121,15 @@ class Trac(object):
 
 		comment = raw_input("Comment: ")
 
-		attrs = {
-				"readonly": False,
-				"author": user,
-				"comment": comment}
+		self._savePage(page, content, author=user, comment=comment)
 
-		self.server.wiki.putPage(page, content, attrs)
+	def save(self, page):
+		content = self._getPage(page)
+		filename = page.replace("/", "_")
+		buffer = open("%s.wiki" % filename, "w")
+		buffer.write(content)
+		buffer.flush()
+		buffer.close()
 
 ###
 ### Main
@@ -106,7 +144,19 @@ def main():
 		for page in trac.pages():
 			print page
 	elif opts.edit:
-		trac.edit(opts.edit)
+		try:
+			trac.edit(opts.edit)
+		except KeyboardInterrupt:
+			pass
+		except Exception, error:
+			print "ERROR: %s" % error
+			print format_exc()
+	elif opts.save:
+		try:
+			trac.save(opts.save)
+		except Exception, error:
+			print "ERROR: %s" % error
+			print format_exc()
 
 ###
 ### Entry Point
