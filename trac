@@ -7,6 +7,13 @@ to communicate with Trac instances for editing
 wiki pages, tickets, etc.
 
 Usage: trac <options> [<args>]
+
+NOTE:
+ * For Vim Users, please put the following setting into your .vimrc
+  * Trac and/or Python does not support BOM (Byte Order mark).
+
+autocmd BufRead *.wiki setlocal nobomb
+
 """
 
 import os
