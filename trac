@@ -24,9 +24,9 @@ import xmlrpclib
 from cStringIO import StringIO
 from traceback import format_exc
 
-__version__ = "0.1"
+__version__ = "0.2"
 
-USAGE = "%prog <options> [<args>]"
+USAGE = "%prog <options> [<page>]"
 VERSION = "%prog v" + __version__
 
 ###
@@ -62,11 +62,14 @@ def parse_options():
 			action="store_true", default=False, dest="list",
 			help="List wiki all pages")
 	parser.add_option("-e", "--edit",
-			action="store", default=None, dest="edit",
+			action="store_true", default=False, dest="edit",
 			help="Edit a wiki page")
 	parser.add_option("-s", "--save",
-			action="store", default=None, dest="save",
+			action="store_true", default=False, dest="save",
 			help="Save a wiki page locally")
+	parser.add_option("-d", "--delete",
+			action="store_true", default=False, dest="delete",
+			help="Delete a wiki page")
 
 	opts, args = parser.parse_args()
 
@@ -110,11 +113,20 @@ class Trac(object):
 		except xmlrpclib.Fault, fault:
 			raise
 
+	def _deletePage(self, page):
+		try:
+			self.server.wiki.deletePage(page)
+		except xmlrpclib.Fault, fault:
+			raise
+
 	def edit(self, page):
 		editor = os.getenv("EDITOR", "vim")
 		user = os.getenv("USER", "anonymous")
 
-		content = self._getPage(page)
+		try:
+			content = self._getPage(page)
+		except NotFound:
+			content = ""
 
 		buffer = tempfile.NamedTemporaryFile(prefix="trac", suffix=".wiki")
 		buffer.write(content)
@@ -139,12 +151,22 @@ class Trac(object):
 		buffer.flush()
 		buffer.close()
 
+	def delete(self, page):
+		q = raw_input("Delete %s (y/n) ?" % page)
+		if q == "y":
+			self._deletePage(page)
+
 ###
 ### Main
 ###
 
 def main():
 	opts, args = parse_options()
+
+	if args:
+		page = args[0]
+	else:
+		page = None
 
 	trac = Trac()
 
@@ -153,7 +175,7 @@ def main():
 			print page
 	elif opts.edit:
 		try:
-			trac.edit(opts.edit)
+			trac.edit(page)
 		except KeyboardInterrupt:
 			pass
 		except Exception, error:
@@ -161,7 +183,13 @@ def main():
 			print format_exc()
 	elif opts.save:
 		try:
-			trac.save(opts.save)
+			trac.save(page)
+		except Exception, error:
+			print "ERROR: %s" % error
+			print format_exc()
+	elif opts.delete:
+		try:
+			trac.delete(page)
 		except Exception, error:
 			print "ERROR: %s" % error
 			print format_exc()
