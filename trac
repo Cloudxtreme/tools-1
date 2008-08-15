@@ -91,6 +91,7 @@ class Trac(object):
 
 		try:
 			content = self.server.wiki.getPage(page)
+			content = content.encode("utf-8")
 		except xmlrpclib.Fault, fault:
 			raise
 
@@ -108,7 +109,7 @@ class Trac(object):
 
 		content = self._getPage(page)
 
-		buffer = tempfile.NamedTemporaryFile(suffix=".wiki")
+		buffer = tempfile.NamedTemporaryFile(prefix="trac", suffix=".wiki")
 		buffer.write(content)
 		buffer.flush()
 		buffer.seek(0)
