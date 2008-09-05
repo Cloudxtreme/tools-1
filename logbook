@@ -1,0 +1,14 @@
+#!/bin/bash
+
+LOGBOOK_PATH=$CWD
+
+FILE=`date +%Y%m%d`.log.txt
+
+if [ ! -f $FILE ]; then
+cat > $FILE <<EOF
+Logbook Entry for `date`:
+
+EOF
+fi
+
+vim $FILE
