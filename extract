@@ -15,9 +15,7 @@ import os.path
 import optparse
 from zipfile import ZipFile
 
-from pymills.utils import getFiles
-
-__version__ = "0.1"
+__version__ = "0.2"
 __copyright__ = "CopyRight (C) 2008 by James Mills"
 __author__ = "James Mills, prologic at shortcircuit dot net dot au"
 __url__ = "http://prologic.shortcircuit.net.au/"
@@ -41,6 +39,41 @@ def parse_options():
 	opts, args = parser.parse_args()
 
 	return opts, args
+
+def getFiles(root, pattern=".*", tests=[isfile], **kwargs):
+	"""getFiles(root, pattern=".*", tests=[isfile], f**kwargs) -> list of files
+
+	Return a list of files in the specified path (root)
+	applying the predicates listed in tests returning
+	only the files that match the pattern. Some optional
+	kwargs can be specified:
+	 * full=True		(Return full paths)
+	 * recursive=True	(Recursive mode)
+	"""
+
+	def test(file, tests):
+		for test in tests:
+			if not test(file):
+				return False
+		return True
+
+	full = kwargs.get("full", False)
+	recursive = kwargs.get("recursive", False)
+
+	files = []
+
+	for file in os.listdir(root):
+		path = os.path.abspath(os.path.join(root, file))
+		if os.path.isdir(path):
+			if recursive:
+				files.extend(getFiles(path, pattern, **kwargs))
+		elif test(path, tests) and re.match(pattern, path):
+			if full:
+				files.append(path)
+			else:
+				files.append(file)
+
+	return files
 
 class Extractor(object):
 
