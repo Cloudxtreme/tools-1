@@ -9,10 +9,12 @@ top-level directory. If not, one will be created based
 on the name of the archive (minus the extension).
 """
 
+import re
 import os
 import sys
 import os.path
 import optparse
+from os.path import isfile
 from zipfile import ZipFile
 
 __version__ = "0.2"
