@@ -1,0 +1,152 @@
+#!/usr/bin/env python
+
+# Filename: html2csv
+# Module:	html2csv
+# Date:		13th Sep 2004
+# Author:	James Mills <prologic@shortcircuit.net.au>
+
+"""html2csv
+
+Program to convert HTML files that are supposed to be CSV files
+into proper Plain-Text CSV files.
+eg: priceSheet.jsp from http://www.cw.com.au (As a Dealer)
+"""
+
+import sys
+import optparse
+
+from pymills.utils import State
+
+__version__ = "0.0.1"
+
+USAGE = "%prog [options] <filename>"
+VERSION = "%prog v" + __version__
+
+def parse_options():
+	"""parse_options() -> opts, args
+
+	Parse command-line options given returning both
+	the parsed options and arguments.
+	"""
+
+	parser = optparse.OptionParser(usage=USAGE, version=VERSION)
+
+	parser.add_option("-b", "--bad-fields",
+			action="store", default="", dest="badfields",
+			help="Fields to ignore (bad)")
+
+	opts, args = parser.parse_args()
+	return opts, args
+
+def main():
+
+	opts, args = parse_options()
+
+	try:
+		badfields = []
+		if not opts.badfields == "":
+			badfields = [int(x) for x in opts.badfields.split(",")]
+	except Exception, e:
+		print "ERROR: Invalid fields specified for bad-fields option."
+		print str(e)
+		raise SystemExit, 1
+
+	if len(args) == 1:
+		filename = args[0]
+		if filename == "-":
+			fd = sys.stdin
+		else:
+			fd = open(filename, "r")
+	else:
+		print "ERROR: No filename given."
+		raise SystemExit, 1
+
+	convert(badfields, fd)
+
+def notags(str):
+	"Removes HTML tags from str and returns the new string"
+
+	s = State()
+
+	STATE_TEXT = 0
+	STATE_TAG = 1
+
+	state = STATE_TEXT
+
+	newStr = ""
+
+	for char in str:
+
+		if state == STATE_TEXT:
+			if char == '<':
+				state = STATE_TAG
+			else:
+				newStr = newStr + char
+
+		elif state == STATE_TAG:
+			if char == '>':
+				state = STATE_TEXT
+	
+	return newStr
+
+def convert(badfields, file):
+	"""convert(badfields, file) -> None
+	
+	SImple state-machine to convert a file to CSV
+
+	This assumes the file is a bad representation of CSV in
+	HTML format. This function will try to clean up the HTML
+	and write out a Plain-Text CSV representation to stdout.
+	"""
+
+	STATE_JUNK		= 9
+	STATE_HEADER	= 1
+	STATE_DATA		= 2
+
+	state = STATE_JUNK
+	numFields = None
+	fields = []
+	fieldNo = 0
+
+	for line in file:
+		line = line.strip()
+
+		if state == STATE_JUNK:
+			if "<body" in line:
+				state = STATE_HEADER
+
+		elif state == STATE_HEADER:
+			if not line == "":
+				line = notags(line)
+				numFields = len(line.split(","))
+				sys.stdout.write(line + "\n")
+				state = STATE_DATA
+
+		elif state == STATE_DATA:
+			if not line == "":
+				if "</body>" in line:
+					state = STATE_JUNK
+				else:
+					line = notags(line).strip(",")
+
+					if not line == "":
+						if fieldNo in badfields:
+							line = line.replace(",", "\,")
+							fields.append(line)
+							fieldNo = fieldNo + 1
+						else:
+							if "," in line:
+								tmp = line.split(", ")
+								fields = fields + tmp
+								fieldNo = fieldNo + len(tmp)
+							else:
+								fields.append(line)
+								fieldNo = fieldNo + 1
+
+						if len(fields) == numFields:
+							sys.stdout.write(", ".join(fields) + "\n")
+							fieldNo = 0
+							fields = []
+
+if __name__ == "__main__":
+	main()

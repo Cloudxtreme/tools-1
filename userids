@@ -1,0 +1,184 @@
+#!/usr/bin/env python
+
+"""userids
+
+This script is usefull for users/maintainers of a CRUX Linux
+system by helping to sort out what user id is available.
+This tool was developed to avoid having to grep or lookup
+the /etc/passwd file every time a new passwd was to be added.
+
+To user this tool simply run it, eg:
+	userids
+For more information, See: userids --help
+"""
+
+import os
+import string
+import optparse
+
+__version__ = "0.0.2"
+
+def isReadable(file):
+	return os.access(file, os.R_OK)
+
+class Table:
+	"""Class to print nicely formatted tables
+
+	This class will allow you to print nice pretty
+	tabl-like outputs to stdout. You give it a header
+	and add a bunch of rows, then print it.
+	"""
+
+	LJUSTIFY = -1
+	CENTER = 0
+	RJUSTIFY = 1
+
+	def __init__(self, headers):
+		"""Initialize Table Object
+
+		Syntax of headers (list of tuples):
+		(title, length, justify)
+		"""
+
+		self._headers = headers
+		self._header = ""
+		self._rows = []
+
+		for title, length, justify in headers:
+			if justify == Table.LJUSTIFY:
+				self._header += title.ljust(length)
+			elif justify == Table.CENTER:
+				self._header += title.center(length)
+			elif justify == Table.RJUSTIFY:
+				self._header += title.rjust(length)
+			else:
+				self._header += title.ljust(length)
+
+	def __str__(self):
+
+		import string
+		from StringIO import StringIO
+
+		s = StringIO()
+		s.write("%s\n" % self._header)
+		s.write("-" * len(self._header))
+		s.write("\n")
+
+		for row in self._rows:
+			s.write("%s\n" % string.join(
+				map(self._convert, self._headers, 
+					map(str, row)), ""))
+
+		s.write("-" * len(self._header))
+		s.write("\n")
+
+		try:
+			return s.getvalue()
+		finally:
+			s.close()
+
+	def _convert(self, header, value):
+		length, justify = header[1:]
+		if justify == Table.LJUSTIFY:
+			return value.ljust(length)
+		elif justify == Table.CENTER:
+			return value.center(length)
+		elif justify == Table.RJUSTIFY:
+			return value.rjust(length)
+		
+	def add(self, row):
+		"""Adds a new row to the table
+
+		row - list of values to print
+		"""
+
+		self._rows.append(row)
+
+def parse_options():
+
+	parser = optparse.OptionParser(
+			usage="%prog [options]",
+			version="%prog " + __version__)
+
+	parser.add_option("-n", "--next",
+			action="store_true", default=False, dest="next",
+			help="Get next available user id")
+
+	parser.add_option("-l", "--last",
+			action="store_true", default=False, dest="last",
+			help="Get last user id")
+
+	parser.add_option("-s", "--script",
+			action="store_true", default=False, dest="script",
+			help="Output, script friendly output")
+
+	opts, args = parser.parse_args()
+
+	return opts, args
+
+def getUsers():
+
+	users = []
+
+	if not isReadable("/etc/passwd"):
+		print "ERROR: Cannot read /etc/passwd"
+		raise SystemExit, 1
+
+	fd = open("/etc/passwd", "r")
+	for line in fd:
+		user, password, uid, gid, name, home, shell = \
+				line.strip().split(":")
+		uid = int(uid)
+		gid = int(gid)
+		users.append(
+				(user, uid, gid, name, home, shell))
+	
+	users.sort(lambda x, y: x[2] - y[2])
+
+	return users
+
+def main():
+
+	opts, args = parse_options()
+
+	users = getUsers()
+
+	if opts.next:
+		first = users[0]
+		last = users[len(users) - 1]
+		userids = map(lambda x: x[2], users)
+		remUsers = filter(lambda x: x not in userids, range(first[2], last[2]))
+		sysUsers = filter(lambda x: x < 100, remUsers)
+		if opts.script:
+			print sysUsers[0], (last[2] + 1)
+		else:
+			print "Next System User ID: %d" % sysUsers[0]
+			print "Next User User ID:   %d" % (last[2] + 1)
+	elif opts.last:
+		last = users[len(users) - 1]
+		user, uid, gid, name, home, shell = last
+		if opts.script:
+			print uid
+		else:
+			print "Last User:"
+			print " User:    %s" % user
+			print " UID:     %d" % uid
+			print " Comment: %s" % name
+	else:
+		table = Table([
+				("Username", 12, Table.LJUSTIFY),
+				("UID", 4, Table.LJUSTIFY),
+				("GID", 4, Table.LJUSTIFY),
+				("Comment", 25, Table.LJUSTIFY),
+				("Home", 15, Table.LJUSTIFY),
+				("Shell", 10, Table.LJUSTIFY)])
+	
+		for user in users:
+			user, uid, gid, name, home, shell = user
+			table.add(
+					(user, uid, gid, name[:14], home, shell))
+
+		print table
+
+if __name__ == "__main__":
+	main()

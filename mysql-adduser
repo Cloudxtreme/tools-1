@@ -1,0 +1,13 @@
+#!/bin/bash
+
+read  -p "Username: " USERNAME
+read  -s -p "Password: " PASSWORD
+read  -p "Hostname: " HOSTNAME
+read  -p "Database: " DATABASE
+read  -s -p "Admin Password: " ROOT_PASSWORD
+
+echo "GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,DROP ON '$DATABASE' TO '$USERNAME'@'$HOSTNAME' \
+IDENTIFIED BY '$PASSWORD';" | mysql \
+	--host=127.0.0.1 \
+	--user="root" \
+	--password="$ROOT_PASSWORD" mysql

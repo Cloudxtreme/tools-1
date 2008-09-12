@@ -1,0 +1,181 @@
+#!/usr/bin/env python
+
+"""groupids
+
+This script is usefull for users/maintainers of a CRUX Linux
+system by helping to sort out what group id is available.
+This tool was developed to avaoid having to grep or lookup
+the /etc/group file every time a new group was to be added.
+
+To user this tool simply run it, eg:
+	groupids
+For more information, See: groupids --help
+"""
+
+import os
+import string
+import optparse
+
+__version__ = "0.0.2"
+
+def isReadable(file):
+	return os.access(file, os.R_OK)
+
+class Table:
+	"""Class to print nicely formatted tables
+
+	This class will allow you to print nice pretty
+	tabl-like outputs to stdout. You give it a header
+	and add a bunch of rows, then print it.
+	"""
+
+	LJUSTIFY = -1
+	CENTER = 0
+	RJUSTIFY = 1
+
+	def __init__(self, headers):
+		"""Initialize Table Object
+
+		Syntax of headers (list of tuples):
+		(title, length, justify)
+		"""
+
+		self._headers = headers
+		self._header = ""
+		self._rows = []
+
+		for title, length, justify in headers:
+			if justify == Table.LJUSTIFY:
+				self._header += title.ljust(length)
+			elif justify == Table.CENTER:
+				self._header += title.center(length)
+			elif justify == Table.RJUSTIFY:
+				self._header += title.rjust(length)
+			else:
+				self._header += title.ljust(length)
+
+	def __str__(self):
+
+		import string
+		from StringIO import StringIO
+
+		s = StringIO()
+		s.write("%s\n" % self._header)
+		s.write("-" * len(self._header))
+		s.write("\n")
+
+		for row in self._rows:
+			s.write("%s\n" % string.join(
+				map(self._convert, self._headers, 
+					map(str, row)), ""))
+
+		s.write("-" * len(self._header))
+		s.write("\n")
+
+		try:
+			return s.getvalue()
+		finally:
+			s.close()
+
+	def _convert(self, header, value):
+		length, justify = header[1:]
+		if justify == Table.LJUSTIFY:
+			return value.ljust(length)
+		elif justify == Table.CENTER:
+			return value.center(length)
+		elif justify == Table.RJUSTIFY:
+			return value.rjust(length)
+		
+	def add(self, row):
+		"""Adds a new row to the table
+
+		row - list of values to print
+		"""
+
+		self._rows.append(row)
+
+def parse_options():
+
+	parser = optparse.OptionParser(
+			usage="%prog [options]",
+			version="%prog " + __version__)
+
+	parser.add_option("-n", "--next",
+			action="store_true", default=False, dest="next",
+			help="Get next available group id")
+
+	parser.add_option("-l", "--last",
+			action="store_true", default=False, dest="last",
+			help="Get last group id")
+
+	parser.add_option("-s", "--script",
+			action="store_true", default=False, dest="script",
+			help="Output, script friendly output")
+
+	opts, args = parser.parse_args()
+
+	return opts, args
+
+def getGroups():
+
+	groups = []
+
+	if not isReadable("/etc/group"):
+		print "ERROR: Cannot read /etc/group"
+		raise SystemExit, 1
+
+	fd = open("/etc/group", "r")
+	for line in fd:
+		name, unknown, id, members = line.strip().split(":")
+		id = int(id)
+		members = members.split(",")
+		groups.append((name, unknown, id, members))
+	
+	groups.sort(lambda x, y: x[2] - y[2])
+
+	return groups
+
+def main():
+
+	opts, args = parse_options()
+
+	groups = getGroups()
+
+	if opts.next:
+		first = groups[0]
+		last = groups[len(groups) - 1]
+		groupids = map(lambda x: x[2], groups)
+		remGroups = filter(lambda x: x not in groupids, range(first[2], last[2]))
+		sysGroups = filter(lambda x: x < 100, remGroups)
+		if opts.script:
+			print sysGroups[0], (last[2] + 1)
+		else:
+			print "Next System Group ID: %d" % sysGroups[0]
+			print "Next User Group ID:   %d" % (last[2] + 1)
+	elif opts.last:
+		last = groups[len(groups) - 1]
+		name, unknown, id, members = last
+		if opts.script:
+			print id
+		else:
+			members  = string.join(members, ",")
+			print "Last Group:"
+			print " Name:     %s" % name
+			print " ID:       %d" % id
+			print " Members:  %s" % members
+	else:
+		table = Table([
+				("Name", 12, Table.LJUSTIFY),
+				("???", 4, Table.LJUSTIFY),
+				("ID", 4, Table.LJUSTIFY),
+				("Members", 30, Table.LJUSTIFY)])
+	
+		for group in groups:
+			name, unknown, id, members = group
+			members  = string.join(members, ",")
+			table.add((name, unknown, id, members))
+
+		print table
+
+if __name__ == "__main__":
+	main()

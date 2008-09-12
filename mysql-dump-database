@@ -1,0 +1,13 @@
+#!/bin/bash
+
+read  -p "Username: " USERNAME
+read  -s -p "Password: " PASSWORD
+read  -p "Hostname: " HOSTNAME
+read  -p "Database: " DATABASE
+
+mysqldump -a -c -e --add-drop-table --add-locks \
+	--allow-keywords -Q \
+	--user=$USERNAME \
+	--password=$PASSWORD \
+	--host=$HOSTNAME \
+	$DATABASE | bzip2 > $DATABASE-`date +%s`.sql.bz2
