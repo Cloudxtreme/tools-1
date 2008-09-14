@@ -79,23 +79,15 @@ def analyzeCSV(data):
 			field = fields.get(i, {})
 
 			fmin = field.get("min", None)
-			favg = field.get("avg", None)
 			fmax = field.get("max", None)
-			total = field.get("total", 0)
 
 			l = len(col)
-			total += l
-			field["total"] = total
 
 			if fmin is None:
 				fmin = l
 			else:
 				if l < fmin:
 					fmin = l
-			if favg is None:
-				favg = l
-			else:
-				favg = float(total) / float(d["Rows"])
 				
 			if fmax is None:
 				fmax = l
@@ -104,10 +96,8 @@ def analyzeCSV(data):
 					fmax = l
 
 			field["min"] = fmin
-			field["avg"] = favg
 			field["max"] = fmax
 
-			del field["total"]
 			fields[i] = field
 	else:
 		d["Columns"] = len(row)
