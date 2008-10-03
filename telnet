@@ -7,7 +7,7 @@ import optparse
 from pymills.io import Stdin
 from pymills.net.sockets import TCPClient
 from pymills import __version__ as systemVersion
-from pymills.event import listener, Manager, Debugger, UnhandledEvent
+from pymills.event import listener, Manager, Debugger
 
 USAGE = "%prog [options] <host> [<port>]>"
 VERSION = "%prog v" + systemVersion
