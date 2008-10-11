@@ -88,7 +88,7 @@ def main():
 		if fields:
 			s = []
 			for x in fields:
-				s.append(line[x])
+				s.append(line[x - 1])
 			print ",".join(s)
 		else:
 			print line
