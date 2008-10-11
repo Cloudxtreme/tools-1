@@ -17,6 +17,7 @@ __url__ = "http://shortcircuit.net.au/~prologic/"
 __copyright__ = "CopyRight (C) 2005-2008 by %s" % __author__
 __license__ = "GPL"
 
+import sys
 import csv
 import optparse
 from cStringIO import StringIO
