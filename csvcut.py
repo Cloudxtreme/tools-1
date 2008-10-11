@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # Module:	csvcut
-# Date:		03 October 2008
+# Date:		3rd October 2008
 # Author:	James Mills, prologic at shortcircuit dot net dot au
 
 """csvcut
