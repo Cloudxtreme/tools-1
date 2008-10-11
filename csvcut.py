@@ -21,7 +21,7 @@ import csv
 import optparse
 from cStringIO import StringIO
 
-USAGE = "%prog [options] <file>"
+USAGE = "%prog [options] [file]"
 VERSION = "%prog v" + __version__
 
 def parse_options():
@@ -41,10 +41,6 @@ def parse_options():
 
 	if not opts.fields:
 		print "ERROR: No fields specified, use -f/--fields"
-		parser.print_help()
-		raise SystemExit, 1
-
-	if len(args) < 1:
 		parser.print_help()
 		raise SystemExit, 1
 
