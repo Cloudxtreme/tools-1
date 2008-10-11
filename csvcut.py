@@ -10,7 +10,7 @@ Tool to read and cut up CSV files by fields.
 """
 
 __desc__ = "CSV Cut"
-__version__ = "0.2"
+__version__ = "0.2.1"
 __author__ = "James Mills"
 __email__ = "%s, prologic at shortcircuit dot net dot au" % __author__
 __url__ = "http://shortcircuit.net.au/~prologic/"
@@ -39,7 +39,8 @@ def parse_options():
 
 	opts, args = parser.parse_args()
 
-	if not opts.field:
+	if not opts.fields:
+		print "ERROR: No fields specified, use -f/--fields"
 		parser.print_help()
 		raise SystemExit, 1
 
