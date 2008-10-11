@@ -10,7 +10,7 @@ Tool to read and cut up CSV files by fields.
 """
 
 __desc__ = "CSV Cut"
-__version__ = "0.1"
+__version__ = "0.2"
 __author__ = "James Mills"
 __email__ = "%s, prologic at shortcircuit dot net dot au" % __author__
 __url__ = "http://shortcircuit.net.au/~prologic/"
@@ -33,9 +33,9 @@ def parse_options():
 
 	parser = optparse.OptionParser(usage=USAGE, version=VERSION)
 
-	parser.add_option("-f", "--field",
-			action="store", type="int", default=None, dest="field",
-			help="Field to cut (required)")
+	parser.add_option("-f", "--fields",
+			action="store", type="string", default=None, dest="fields",
+			help="List of fields to cut")
 
 	opts, args = parser.parse_args()
 
@@ -76,15 +76,24 @@ def readCSV(file):
 def main():
 	opts, args = parse_options()
 
-	file = args[0]
-
-	if file == "-":
-		fd = sys.stdin
+	if args:
+		fd = open(args[0], "rU")
 	else:
-		fd = open(file, "rU")
+		fd = sys.stdin
+
+	if opts.fields:
+		fields = [int(x) for x in fields.split(",")]
+	else:
+		fields = None
 
 	for line in readCSV(fd):
-		print line[opts.field]
+		if fields:
+			s = []
+			for x in fields:
+				s.append(line[x])
+			print ",".join(s)
+		else:
+			print line
 
 if __name__ == "__main__":
 	main()
