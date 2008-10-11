@@ -80,7 +80,7 @@ def main():
 		fd = sys.stdin
 
 	if opts.fields:
-		fields = [int(x) for x in fields.split(",")]
+		fields = [int(x) for x in opts.fields.split(",")]
 	else:
 		fields = None
 
