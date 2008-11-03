@@ -13,7 +13,7 @@ to stdout (which can be piped).
 """
 
 __desc__ = "CSV to SQL Tool"
-__version__ = "0.1"
+__version__ = "0.2"
 __author__ = "James Mills"
 __email__ = "%s, prologic at shortcircuit dot net dot au" % __author__
 __url__ = "http://shortcircuit.net.au/~prologic/"
@@ -40,6 +40,10 @@ def parse_options():
 	parser.add_option("-t", "--table",
 			action="store", default=None, dest="table",
 			help="Specify table name")
+
+	parser.add_option("-f", "--fields",
+			action="store", default=None, dest="fields",
+			help="Specify a list of fields")
 
 	opts, args = parser.parse_args()
 
@@ -90,8 +94,13 @@ def main():
 			table = opts.table
 
 	for line in readCSV(fd):
-		values = ("\"%s\"" % x for x in line)
-		print "INSERT INTO %s VALUES (%s);" % (table, ",".join(values))
+		if opts.fields:
+			fields = [x.strip() for x in opts.fields.split(",")]
+			fields = "(%s)" % ",".join(fields)
+		else:
+			fields = ""
+		values = ",".join(["\"%s\"" % x for x in line])
+		print "INSERT INTO %s %s VALUES (%s);" % (table, fields, values)
 
 if __name__ == "__main__":
 	main()
