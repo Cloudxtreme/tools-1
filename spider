@@ -16,16 +16,15 @@ import urlparse
 import optparse
 from BeautifulSoup import BeautifulSoup
 
-import spider
 import pymills
-from pymills.web import escape
+from pymills.utils import encodeHTML
 from pymills.datatypes import Queue
 from pymills import __version__ as systemVersion
 
 USAGE = "%prog [options] <url>"
 VERSION = "%prog v" + systemVersion
 
-AGENT = "%s-%s/%s" % (pymills.__name__, spider.__name__, pymills.__version__)
+AGENT = "%s/%s" % (pymills.__name__, pymills.__version__)
 
 class Crawler(object):
 
@@ -114,7 +113,7 @@ class Fetcher(object):
 				try:
 					href = tag["href"]
 					if href is not None:
-						url = urlparse.urljoin(self.url, escape(href))
+						url = urlparse.urljoin(self.url, encodeHTML(href))
 						if url not in self:
 							print " Found: %s" % url
 							self.urls.append(url)
@@ -145,7 +144,7 @@ def parse_options():
 			help="Get links for specified url only")
 
 	parser.add_option("-d", "--depth",
-			action="store", default=30, dest="depth",
+			action="store", type="int", default=30, dest="depth",
 			help="Maximum depth to traverse")
 
 	opts, args = parser.parse_args()
