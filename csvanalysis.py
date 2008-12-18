@@ -13,7 +13,7 @@ the best way to store this data.
 """
 
 __desc__ = "CSV Analysis Tool"
-__version__ = "0.1"
+__version__ = "0.2"
 __author__ = "James Mills"
 __email__ = "%s, prologic at shortcircuit dot net dot au" % __author__
 __url__ = "http://shortcircuit.net.au/~prologic/"
@@ -47,20 +47,11 @@ def parse_options():
 
 	return opts, args
 
-def mkBuffer(fd):
-	buffer = StringIO()
-	buffer.write(fd.read())
-	buffer.seek(0)
-	fd.close()
-	return buffer
-
 def readCSV(file):
 	if type(file) == str:
 		fd = open(file, "rU")
 	else:
 		fd = file
-
-	fd = mkBuffer(fd)
 
 	sniffer = csv.Sniffer()
 	dialect = sniffer.sniff(fd.readline())
