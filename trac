@@ -24,7 +24,7 @@ import xmlrpclib
 from cStringIO import StringIO
 from traceback import format_exc
 
-__version__ = "0.2"
+__version__ = "0.3"
 
 USAGE = "%prog <options> [<page>]"
 VERSION = "%prog v" + __version__
@@ -70,6 +70,12 @@ def parse_options():
 	parser.add_option("-d", "--delete",
 			action="store_true", default=False, dest="delete",
 			help="Delete a wiki page")
+	parser.add_option("-u", "--upload",
+			action="store_true", default=False, dest="upload",
+			help="Upload a wiki page")
+	parser.add_option("-c", "--comment",
+			action="store", default=None, dest="comment",
+			help="Specify a comment")
 
 	opts, args = parser.parse_args()
 
@@ -83,7 +89,8 @@ class Trac(object):
 
 	uri = None
 
-	def __init__(self, uri=None):
+	def __init__(self, opts, uri=None):
+		self.opts = opts
 		self.uri = os.getenv("TRACURL", uri)
 
 		self.server = xmlrpclib.ServerProxy(self.uri)
@@ -139,7 +146,7 @@ class Trac(object):
 		content = buffer.read()
 		buffer.close()
 
-		comment = raw_input("Comment: ")
+		comment = self.opts.comment or raw_input("Comment: ")
 
 		self._savePage(page, content, author=user, comment=comment)
 
@@ -156,6 +163,17 @@ class Trac(object):
 		if q == "y":
 			self._deletePage(page)
 
+	def upload(self, page, filename):
+		user = os.getenv("USER", "anonymous")
+
+		fd = open(filename, "r")
+		content = fd.read()
+		fd.close()
+
+		comment = self.opts.comment or raw_input("Comment: ")
+
+		self._savePage(page, content, author=user, comment=comment)
+
 ###
 ### Main
 ###
@@ -168,7 +186,7 @@ def main():
 	else:
 		page = None
 
-	trac = Trac()
+	trac = Trac(opts)
 
 	if opts.list:
 		for page in trac.pages():
@@ -190,6 +208,12 @@ def main():
 	elif opts.delete:
 		try:
 			trac.delete(page)
+		except Exception, error:
+			print "ERROR: %s" % error
+			print format_exc()
+	elif opts.upload:
+		try:
+			trac.upload(*args)
 		except Exception, error:
 			print "ERROR: %s" % error
 			print format_exc()
