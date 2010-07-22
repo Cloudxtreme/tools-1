@@ -2,14 +2,34 @@
 # -*- coding: utf-8 -*-
 # vim: set sw=3 sts=3 ts=3
 
+"""(Example) Telnet Client
+
+A basic telnet-like clone that connects to remote hosts
+via tcp and allows the user to send data to the remote
+server.
+
+This example demonstrates:
+    * Basic Component creation.
+    * Basic Event handling.
+    * Basiv Networking
+    * Basic Request/Response Networking
+
+This example makes use of:
+    * Component
+    * Event
+    * lib.sockets.TCPClient
+"""
+
+import os
 import optparse
+from socket import gethostname
 
-from circuits.lib.io import Stdin
-from circuits.lib.sockets import TCPClient
-from circuits import listener, Manager, Debugger
+from circuits.io import stdin
+from circuits import handler, Component
 from circuits import __version__ as systemVersion
+from circuits.net.sockets import TCPClient, UNIXClient, Connect, Write
 
-USAGE = "%prog [options] <host> [<port>]>"
+USAGE = "%prog [options] host [port]"
 VERSION = "%prog v" + systemVersion
 
 ###
@@ -28,9 +48,6 @@ def parse_options():
     parser.add_option("-s", "--ssl",
             action="store_true", default=False, dest="ssl",
             help="Enable Secure Socket Layer (SSL)")
-    parser.add_option("-d", "--debug",
-            action="store_true", default=False, dest="debug",
-            help="Enable debug mode. (Default: False)")
 
     opts, args = parser.parse_args()
 
@@ -44,19 +61,48 @@ def parse_options():
 ### Components
 ###
 
-class Telnet(TCPClient):
+class Telnet(Component):
 
-    @listener("connect")
-    def onCONNECT(self, host, port):
+    channel = "telnet"
+
+    def __init__(self, *args):
+        super(Telnet, self).__init__()
+
+        if len(args) == 1:
+            if os.path.exists(args[0]):
+                self += UNIXClient(channel=self.channel)
+                host = dest = port = args[0]
+                dest = (dest,)
+            else:
+                raise OSError("Path %s not found" % args[0])
+        else:
+            self += TCPClient(channel=self.channel)
+            host, port = args
+            port = int(port)
+            dest = host, port
+
+        print "Trying %s ..." % host
+        self.push(Connect(*dest), "connect")
+
+    def connected(self, host, port=None):
         print "Connected to %s" % host
 
-    @listener("read")
-    def onREAD(self, data):
+    def error(self, *args):
+        if len(args) == 3:
+            type, value, traceback = args
+        else:
+            value = args[0]
+            type = type(value)
+            traceback = None
+
+        print "ERROR: %s" % value
+
+    def read(self, data):
         print data.strip()
 
-    @listener("stdin:read")
-    def onINPUT(self, data):
-        self.write(data)
+    @handler("read", target="stdin")
+    def stdin_read(self, data):
+        self.push(Write(data), "write")
 
 ###
 ### Main
@@ -65,36 +111,7 @@ class Telnet(TCPClient):
 def main():
     opts, args = parse_options()
 
-    host = args[0]
-    if len(args) > 1:
-        port = int(args[1])
-    else:
-        port = 23
-
-    manager = Manager()
-
-    stdin = Stdin()
-    manager += stdin
-
-    if opts.debug:
-        debugger = Debugger()
-        manager += debugger
-        debugger.IgnoreEvents.extend(["Read", "Write"])
-
-    telnet = Telnet()
-    manager += telnet
-
-    print "Trying %s..." % host
-    telnet.open(host, port, ssl=opts.ssl)
-
-    while telnet.connected:
-        try:
-            stdin.poll()
-            telnet.poll()
-            manager.flush()
-        except KeyboardInterrupt:
-            break
-    telnet.close()
+    (Telnet(*args) + stdin).run()
 
 ###
 ### Entry Point
