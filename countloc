@@ -14,14 +14,13 @@ import optparse
 try:
     from numpy import min, max, mean, std
 except ImportError:
-    mean = lambda x: sum(x) / len(x)
-    std = 
+    from pymills.mathtools import mean, std
 
 from pymills.utils import getFiles
 
-__version__ = "0.2"
-__copyright__ = "CopyRight (C) 2008-2009 by James Mills"
-__author__ = "James Mills <prologic@shortcircuit.net.au>"
+__version__ = "0.3"
+__copyright__ = "CopyRight (C) 2008-2011 by James Mills"
+__author__ = "James Mills, prologic at shortcircuit dot net dot au"
 __url__ = "http://prologic.shortcircuit.net.au/"
 
 USAGE = "%prog [options] <pattern>"
