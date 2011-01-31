@@ -14,17 +14,22 @@ import math
 import urllib2
 import urlparse
 import optparse
+from cgi import escape
+from traceback import format_exc
+from Queue import Queue, Empty as QueueEmpty
+
 from BeautifulSoup import BeautifulSoup
 
-import pymills
-from pymills.utils import encodeHTML
-from pymills.datatypes import Queue
-from pymills import __version__ as systemVersion
+__version__ = "0.2"
+__copyright__ = "CopyRight (C) 2008-2011 by James Mills"
+__license__ = "MIT"
+__author__ = "James Mills"
+__author_email__ = "James Mills, James dot Mills st dotred dot com dot au"
 
 USAGE = "%prog [options] <url>"
-VERSION = "%prog v" + systemVersion
+VERSION = "%prog v" + __version__
 
-AGENT = "%s/%s" % (pymills.__name__, pymills.__version__)
+AGENT = "%s/%s" % (__name__, __version__)
 
 class Crawler(object):
 
@@ -33,22 +38,28 @@ class Crawler(object):
         self.depth = depth
         self.locked = locked
         self.host = urlparse.urlparse(root)[1]
+        self.urls = []
         self.links = 0
         self.followed = 0
 
     def crawl(self):
         page = Fetcher(self.root)
         page.fetch()
-        urls = Queue()
+        q = Queue()
         for url in page.urls:
-            urls.push(url)
+            q.put(url)
         followed = [self.root]
 
         n = 0
 
-        while not urls.empty():
+        while True:
+            try:
+                url = q.get()
+            except QueueEmpty:
+                break
+
             n += 1
-            url = urls.pop()
+
             if url not in followed:
                 try:
                     host = urlparse.urlparse(url)[1]
@@ -58,22 +69,21 @@ class Crawler(object):
                         page = Fetcher(url)
                         page.fetch()
                         for i, url in enumerate(page):
-                            if url not in urls:
+                            if url not in self.urls:
                                 self.links += 1
-                                urls.push(url)
+                                q.put(url)
+                                self.urls.append(url)
                         if n > self.depth and self.depth > 0:
                             break
-                except Exception, error:
-                    print "Warning: Can't process url '%s'" % url
+                except Exception, e:
+                    print "ERROR: Can't process url '%s' (%s)" % (url, e)
+                    print format_exc()
 
 class Fetcher(object):
 
     def __init__(self, url):
         self.url = url
         self.urls = []
-
-    def __contains__(self, x):
-        return x in self.urls
 
     def __getitem__(self, x):
         return self.urls[x]
@@ -83,7 +93,6 @@ class Fetcher(object):
 
     def open(self):
         url = self.url
-        #print "Following %s" % url
         try:
             request = urllib2.Request(url)
             handle = urllib2.build_opener()
@@ -110,15 +119,11 @@ class Fetcher(object):
                 print >> sys.stderr, "ERROR: %s" % error
                 tags = []
             for tag in tags:
-                try:
-                    href = tag["href"]
-                    if href is not None:
-                        url = urlparse.urljoin(self.url, encodeHTML(href))
-                        if url not in self:
-                            print " %s" % url
-                            self.urls.append(url)
-                except KeyError:
-                    pass
+                href = tag.get("href")
+                if href is not None:
+                    url = urlparse.urljoin(self.url, escape(href))
+                    if url not in self:
+                        self.urls.append(url)
 
 def getLinks(url):
     page = Fetcher(url)
@@ -171,6 +176,7 @@ def main():
     print "Crawling %s (Max Depth: %d)" % (url, depth)
     crawler = Crawler(url, depth)
     crawler.crawl()
+    print "\n".join(crawler.urls)
 
     eTime = time.time()
     tTime = eTime - sTime
