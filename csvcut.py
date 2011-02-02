@@ -1,88 +1,76 @@
 #!/usr/bin/env python
 
-# Module:	csvcut
-# Date:		3rd October 2008
-# Author:	James Mills, prologic at shortcircuit dot net dot au
-
 """csvcut
 
-Tool to read and cut up CSV files by fields.
+Tool to read and cut up CSV files by fields. Each line of the input file
+is read, parsed and broken up into their respective fields. The fields
+you want to extract are given by the -f/--field option by specifiying
+the field number you'd like. You can specify two or more fields by
+using two or more -f/--field options. Entire records/rows can be kipped
+by using the -s/--skip option. If no fields are given this acts much
+like the cat tool.
 """
 
-__desc__ = "CSV Cut"
-__version__ = "0.4"
+__version__ = "0.5"
 __author__ = "James Mills"
-__email__ = "%s, prologic at shortcircuit dot net dot au" % __author__
-__url__ = "http://shortcircuit.net.au/~prologic/"
-__copyright__ = "CopyRight (C) 2005-2008 by %s" % __author__
-__license__ = "GPL"
 
 import sys
 import csv
 import optparse
-from cStringIO import StringIO
 
-USAGE = "%prog [options] [file]"
+USAGE = "%prog [options] <file>"
 VERSION = "%prog v" + __version__
 
 def parse_options():
-	"""parse_options() -> opts, args
+    parser = optparse.OptionParser(usage=USAGE, version=VERSION)
 
-	Parse any command-line options given returning both
-	the parsed options and arguments.
-	"""
+    parser.add_option("-f", "--field",
+            action="append", type="int",
+            default=[], dest="fields",
+            help="Field no. to cut (multiple allowed)")
 
-	parser = optparse.OptionParser(usage=USAGE, version=VERSION)
+    parser.add_option("-s", "--skip",
+            action="append", type="int",
+            default=[], dest="skip",
+            help="Specify records to skip (multiple allowed)")
 
-	parser.add_option("-f", "--fields",
-			action="store", type="string", default=None, dest="fields",
-			help="List of fields to cut")
+    opts, args = parser.parse_args()
 
-	opts, args = parser.parse_args()
+    if len(args) < 1:
+        parser.print_help()
+        raise SystemExit, 1
 
-	if not opts.fields:
-		print "ERROR: No fields specified, use -f/--fields"
-		parser.print_help()
-		raise SystemExit, 1
+    return opts, args
 
-	return opts, args
+def generate_rows(f):
+    sniffer = csv.Sniffer()
+    dialect = sniffer.sniff(f.readline())
+    f.seek(0)
 
-def readCSV(file):
-
-	if type(file) == str:
-		fd = open(file, "rU")
-	else:
-		fd = file
-
-	sniffer = csv.Sniffer()
-	dialect = sniffer.sniff(fd.readline())
-	fd.seek(0)
-
-	reader = csv.reader(fd, dialect)
-	for line in reader:
-		yield line
+    reader = csv.reader(f, dialect)
+    for line in reader:
+        yield line
 
 def main():
-	opts, args = parse_options()
+    opts, args = parse_options()
 
-	if args:
-		fd = open(args[0], "rU")
-	else:
-		fd = sys.stdin
+    filename = args[0]
 
-	if opts.fields:
-		fields = [int(x) for x in opts.fields.split(",")]
-	else:
-		fields = None
+    if filename == "-":
+        fd = sys.stdin
+    else:
+        fd = open(filename, "rU")
 
-	for line in readCSV(fd):
-		if fields:
-			s = []
-			for x in fields:
-				s.append(line[x - 1])
-			print ",".join(s)
-		else:
-			print line
+    rows = generate_rows(fd)
+
+    for i, row in enumerate(rows):
+        if i in opts.skip:
+            continue
+
+        if opts.fields:
+            print ",".join([row[x] for x in opts.fields])
+        else:
+            print ",".join(row)
 
 if __name__ == "__main__":
-	main()
+    main()
