@@ -24,7 +24,7 @@ import csv
 import optparse
 from cStringIO import StringIO
 
-from pymills.db import Record
+from pymills.dbapi import Record
 from pymills.table import Table, Header, Row, Cell
 
 USAGE = "%prog [options] <file>"
