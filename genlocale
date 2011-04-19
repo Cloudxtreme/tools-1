@@ -1,0 +1,7 @@
+#!/bin/sh
+
+locale=${1}
+
+/usr/bin/localedef -i ${locale} -f ISO-8859-1 ${locale}
+/usr/bin/localedef -i ${locale} -f ISO-8859-1 ${locale}.ISO-8859-1
+/usr/bin/localedef -i ${locale} -f UTF-8 ${locale}.utf8 
