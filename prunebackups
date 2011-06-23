@@ -1,0 +1,9 @@
+#!/bin/bash
+
+cd /backups
+
+for dir in $(ls -1 | head -n 10); do
+    echo -n "Pruning snapshot backup $dir "
+    rm -rf $dir
+    echo "OK"
+done

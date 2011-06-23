@@ -1,0 +1,15 @@
+#!/bin/bash
+
+backupids=$(ps awx | grep rsync | grep -v grep | awk '{print $1}')
+[ -z "$backupids" ] && {
+  echo No backup processes to kill.
+  exit 1
+}
+echo -n "Killing backup processes "
+for process in $backupids; do 
+  ps awx | grep rsync | grep -q "$process" && kill -1 $process
+  echo -n $process
+  sleep 1
+  ps awx | grep rsync | grep -q "$process" && echo -n "[FAILED] " || echo -n "[KILLED] "
+done
+echo

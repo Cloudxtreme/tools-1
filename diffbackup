@@ -1,0 +1,133 @@
+#!/usr/bin/perl
+#H# Diffs 2 rsync backup trees to show what files have changed.
+#H# Usage:
+#H# diff_backup.pl <dir1> <dir2>
+#H# 
+#H# The output is sort of patterned after RedHat's rpm -y command which I feel has
+#H# the perfect format for what it does and I was so happy to see that the Gentoo
+#H# people copied it in the epm command.
+#H# Output Legend:
+#H# + File is new (no further checking is done)
+#H# - File is no longer present (no further checking is done)
+#H# I Inode number has changed
+#H# P File permissions have changed
+#H# O File UID has changed
+#H# G File GID has changed
+#H# S File size has changed
+#H# M File mtime has changed
+#H# 5 File md5sum has changed (assumed if Size is different)
+
+$Me=$0;
+if ($ARGV[0] eq "-h" || $ARGV[0] eq "--help") {
+  open (SELF, $Me);
+  while (<SELF>) {
+    if ($_ =~ /^#H# /) {
+      $Line=$_;
+      $Line =~ s/^#H# //;
+      print $Line;
+    }
+  }
+  exit;
+}
+
+$Dir1=$ARGV[0];
+$Dir2=$ARGV[1];
+$Dir1 =~ s/\/$//;
+$Dir2 =~ s/\/$//;
+@Files1=();
+@Files2=();
+@Stat=();
+%Inode1=();
+%Inode2=();
+%Mode1=();
+%Mode2=();
+%UID1=();
+%GID2=();
+%Size1=();
+%Size2=();
+%Mtime1=();
+%Mtime2=();
+%Diffs=();
+
+
+print "Building file list for $Dir1...\n";
+open (FINDDATA, "find $Dir1 -type f -print |");
+@Files1=<FINDDATA>;
+close (FINDDATA);
+chomp @Files1;
+
+print "Building file list for $Dir2...\n";
+open (FINDDATA, "find $Dir2 -type f -print |");
+@Files2=<FINDDATA>;
+close (FINDDATA);
+chomp @Files2;
+
+print "Getting file stats for $Dir1...\n";
+foreach $FileName (@Files1) {
+  @Stat=(stat("$FileName"));
+  $FileName =~ s/^$Dir1\///;
+  $Inode1{$FileName}=$Stat[1];
+  $Mode1{$FileName}=$Stat[2];
+  $UID1{$FileName}=$Stat[4];
+  $GID1{$FileName}=$Stat[5];
+  $Size1{$FileName}=$Stat[7];
+  $Mtime1{$FileName}=$Stat[9];
+}
+print "Getting file stats for $Dir2...\n";
+foreach $FileName (@Files2) {
+  @Stat=(stat("$FileName"));
+  $FileName =~ s/^$Dir2\///;
+  $Inode2{$FileName}=$Stat[1];
+  $Mode2{$FileName}=$Stat[2];
+  $UID2{$FileName}=$Stat[4];
+  $GID2{$FileName}=$Stat[5];
+  $Size2{$FileName}=$Stat[7];
+  $Mtime2{$FileName}=$Stat[9];
+}
+
+print "Finding files that have dissapeared...\n";
+foreach $FileName (sort(keys(%Inode1))) {
+  if ($Inode2{$FileName} == undef) {
+    $Diffs{$FileName}="-";
+  }
+}
+
+print "Finding files that have been added...\n";
+foreach $FileName (sort(keys(%Inode2))) {
+  if ($Inode1{$FileName} == undef) {
+    $Diffs{$FileName}="+";
+  }
+}
+
+print "Finding files with changes...\n";
+foreach $FileName (sort(keys(%Inode1))) {
+  if ($Diffs{$FileName} ne "+") {
+    if ($Diffs{$FileName} ne "-") {
+      if ($Inode1{$FileName} != $Inode2{$FileName}) { $Diffs{$FileName}="$Diffs{$FileName}" . "I"; }
+      if ($Mode1{$FileName} != $Mode2{$FileName}) { $Diffs{$FileName}="$Diffs{$FileName}" . "P"; }
+      if ($UID1{$FileName} != $UID2{$FileName}) { $Diffs{$FileName}="$Diffs{$FileName}" . "O"; }
+      if ($GID1{$FileName} != $GID2{$FileName}) { $Diffs{$FileName}="$Diffs{$FileName}" . "G"; }
+      if ($Size1{$FileName} != $Size2{$FileName}) { $Diffs{$FileName}="$Diffs{$FileName}" . "S"; }
+      if ($Mtime1{$FileName} != $Mtime2{$FileName}) { $Diffs{$FileName}="$Diffs{$FileName}" . "M"; }
+    }
+  }
+}
+
+print "Finding files that have been modified even though they don't look like it...\n";
+foreach $FileName (sort(keys(%Diffs))) {
+  if ($Diffs{$FileName} ne "+") {
+    if ($Diffs{$FileName} ne "-") {
+      if ($Diffs{$FileName} !~ /S/) {
+        $SumText1=`md5sum "$Dir1/$FileName"`;
+        $SumText2=`md5sum "$Dir2/$FileName"`;
+        ($Sum1,$Junk)=split(/ /,$SumText1,2);
+        ($Sum2,$Junk)=split(/ /,$SumText2,2);
+        if ($Sum1 ne $Sum2) { $Diffs{$FileName}="$Diffs{$FileName}" . "5"; }
+      } else { $Diffs{$FileName}="$Diffs{$FileName}" . "5"; }
+    }
+  }
+}
+
+foreach $FileName (sort (keys (%Diffs))) {
+  print "$Diffs{$FileName}\t$FileName\n";
+}

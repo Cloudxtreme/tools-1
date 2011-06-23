@@ -1,0 +1,50 @@
+#!/bin/bash
+
+alpha_status=$(fping -a -q 172.20.5.2)
+alpha_alive=$?
+
+if [[ ! $alpha_alive ]]; then
+    echo "ERROR: alpha not accessible."
+    echo "Aborting..."
+    exit -1
+fi
+
+current=$(readlink /backups/current)
+
+if [ ! -d "$current" ]; then
+    if [ -e "$current" ]; then
+        rm -f "$current"
+    fi
+    mkdir -p "$current"
+fi
+
+if [ ! -d /backups/incomplete ]; then
+    mkdir -p /backups/incomplete
+fi
+
+rsync --stats \
+      --recursive \
+      --compress \
+      --partial \
+      --times \
+      --perms \
+      --links \
+      --delete \
+      --archive \
+      --inplace \
+      --numeric-ids \
+      --verbose \
+      --itemize-changes \
+      --human-readable \
+      --link-dest=$current \
+      root@172.20.5.2:/export/data/ /backups/incomplete
+
+
+if [[ $? = 0 ]]; then
+    timestamp=$(date +%Y-%m-%d-%H.%M)
+    mv /backups/incomplete /backups/$timestamp
+    rm -f /backups/current
+    ln -s /backups/$timestamp /backups/current
+else
+    echo "ERROR: Backup failed. See errors above"
+fi
