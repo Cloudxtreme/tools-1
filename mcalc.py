@@ -7,14 +7,14 @@ __version__ = "0.1"
 USAGE = "%prog <options>"
 VERSION = "%prog v" + __version__
 
-def interest(P, i):
-    return P * i / 12.0
+def interest(P, i, f):
+    return P * i / f
 
-def payments(P, i, p):
+def payments(P, i, f, p):
     n = 0
     I = 0.0
     while P > 0:
-        a = interest(P, i)
+        a = interest(P, i, f)
         b = p - a
         P -= b
         n += 1
@@ -40,6 +40,10 @@ def parse_options():
 			action="store", type="float", default=300000.0,
             dest="P", metavar="PRINCIPAL",
 			help="Principal ammount ($)")
+	parser.add_option("-f", "--frequency",
+			action="store", type="float", default=12.0,
+            dest="f", metavar="FREQUENCY",
+			help="Frequency of payments")
 
 	opts, args = parser.parse_args()
 
@@ -49,13 +53,14 @@ def main():
     opts, args = parse_options()
 
     i = opts.i
+    f = opts.f
     p = opts.p
     P = opts.P
 
     i = i / 100.0
 
-    n, I = payments(P, i, p)
-    t = n / 12.0
+    n, I = payments(P, i, f, p)
+    t = n / f
 
     print "No. of payments: %d (%0.2fyrs)" % (n, t)
     print "Total Interest:  $%0.2f" % I
