@@ -1,0 +1,77 @@
+#!/usr/bin/env python
+
+import re
+import os
+import sys
+import codecs
+
+
+TERMINATORS = ".!?:;"
+
+
+def mean(seq):
+    return sum(seq) / len(seq)
+
+
+def syllables(word):
+    if len(word) <= 3:
+        return 1
+
+    word = re.sub(r"(es|ed|(?<!l)e)$", "", word)
+    return len(re.findall(r"[aeiouy]+", word))
+
+
+def normalize(text):
+    term = re.escape(TERMINATORS)
+    text = re.sub(r"[^%s\sA-Za-z]+" % term, "", text)
+    text = re.sub(r"\s*([%s]+\s*)+" % term, ". ", text)
+    return re.sub(r"\s+", " ", text)
+
+
+def text_stats(text):
+    text = normalize(text)
+    stcs = [s.split(" ") for s in text.split(". ")]
+    stcs = filter(lambda s: len(s) >= 2, stcs)
+
+    words = sum(len(s) for s in stcs)
+    sbls = sum(syllables(w) for s in stcs for w in s)
+
+    return len(stcs), words, sbls
+
+
+def flesch_index(stats):
+    stcs, words, sbls = stats
+    if stcs == 0 or words == 0:
+        return 0
+    return -1.015 * (words / stcs) + -84.6 * (sbls / words) + 206.835
+
+
+def flesch_kincaid_level(stats):
+    stcs, words, sbls = stats
+    if stcs == 0 or words == 0:
+        return 0
+    return 0.39 * (words / stcs) + 11.8 * (sbls / words) - 15.59
+
+
+def main(argv):
+    if len(argv) < 2:
+        return "No file specified"
+
+    path = " ".join(argv[1:])
+    if not os.path.isfile(path):
+        return "File not found"
+
+    with codecs.open(path) as f:
+        stats = stcs, words, sbls = text_stats(f.read())
+        fi = flesch_index(stats)
+        fk = flesch_kincaid_level(stats)
+
+        print "{0:d} sentences\n{1:d} words\n{2:d} syllables\n" \
+            .format(stcs, words, sbls)
+
+        print "Flesch Reading Ease: {0:.2f}".format(fi)
+        print "Flesch-Kincaid Grade Level: {0:.2f}".format(fk)
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
