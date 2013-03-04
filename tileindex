@@ -1,0 +1,155 @@
+#!/usr/bin/env python
+
+"""Enhanced version of the gdaltindex tool with support for WMS-T (time)."""
+
+import sys
+from os import path
+from optparse import OptionParser
+from re import compile as compile_regex
+
+from osgeo import gdal, osr
+from fiona import collection
+from shapely.geometry import mapping, Polygon
+from shapely.geometry.polygon import LinearRing
+
+__version__ = "0.0.1"
+
+USAGE = "%prog [options] indexfile [gdal_file(s)]"
+VERSION = "%prog v" + __version__
+DESCRIPTION = (
+    "An enhancement to the gdaltindex tool with support for WMS-T (time). "
+    "Please see the man page for gdaltindex itself for full documentation. "
+    "The additional parameters --time-map/--time-pattern if provided will create "
+    "a tile index with a time column (customized with --time-field). If --time-map "
+    "is used it points to a text file containing a set of key:value pairs where each "
+    "line forms a filename:time mapping. e.g: foobar.asc:2013/1/1 If --time-pattern "
+    "is used, a regex is used against each data source filename to determine the "
+    "value of time to use. The regex is standard Python regex. This is matched against "
+    "a required --time-template parameter where groups are used to format the template "
+    "into a valid date/time. e.g: --time-template='{0:s}/1/1'."
+)
+
+
+def parse_options():
+    parser = OptionParser(description=DESCRIPTION, usage=USAGE, version=VERSION)
+
+    parser.add_option(
+        "-f", "--format",
+        action="store", type="string", default="ESRI Shapefile", dest="format",
+        help="Specify an optinoal output data source format (Default: ESRI Shapefile)"
+    )
+
+    parser.add_option(
+        "-s", "--skip-different-projections",
+        action="store_true", default=False, dest="skipdiffsrs",
+        help="Skip data sources whoose projections are different"
+    )
+
+    parser.add_option(
+        "-t", "--tile-index",
+        action="store", type="string", metavar="FIELD", default="location", dest="tileindex",
+        help="Specify the field to store the tile indexes"
+    )
+
+    parser.add_option(
+        "", "--time-field",
+        action="store", type="string", metavar="FIELD", default="time", dest="timefield",
+        help="An optional time field to use for storing time values."
+    )
+
+    parser.add_option(
+        "-m", "--time-map",
+        action="store", type="string", metavar="FILE", default=None, dest="timemap",
+        help="Use the given FILE as a source -> time mapping"
+    )
+
+    parser.add_option(
+        "", "--time-pattern",
+        action="store", type="string", metavar="REGEX", default=None, dest="timepattern",
+        help="Use the given REGEX to determine a time match per data source based on path names"
+    )
+
+    parser.add_option(
+        "", "--time-template",
+        action="store", type="string", metavar="TEMPALTE", default=None, dest="timetemplate",
+        help="Use the given TEMPLATE (Python Format String) to apply the matched time"
+    )
+
+    parser.add_option(
+        "-a", "--absolute-paths",
+        action="store_true", default=False, dest="abspath",
+        help="Write absolute paths to data sources"
+    )
+
+    opts, args = parser.parse_args()
+
+    if opts.timepattern is not None and opts.timemap is not None:
+        print("ERROR: --timepattern and --timemap are mtually exclusive! Please use one or the other.")
+        raise SystemExit(1)
+
+    if opts.timepattern is not None and opts.timetemplate is None:
+        print("ERROR: --time-pattern must be used with --time-template")
+        raise SystemExit(1)
+
+    if len(args) < 2:
+        parser.print_help()
+        raise SystemExit(1)
+
+    return opts, args
+
+
+def main():
+    opts, args = parse_options()
+
+    target = args[0]
+    args = args[1:]
+
+    sources = (line.strip() for line in sys.stdin) if args[0] == "-" else args
+
+    timemap, timepattern = None, None
+
+    if opts.timepattern is not None:
+        timetemplate = opts.timetemplate
+        timepattern = compile_regex(opts.timepattern)
+
+    if opts.timemap is not None:
+        timemap = dict(line.strip().split(":", 1) for line in open(opts.timemap, "r"))
+
+    schema = {"geometry": "Polygon", "properties": {opts.tileindex: "str", opts.timefield: "date"}}
+
+    with collection(target, "w", opts.format, schema) as output:
+        last_srs = None
+
+        for source in sources:
+            input = gdal.Open(source, gdal.GA_ReadOnly)
+            geotransform = input.GetGeoTransform()
+            width = input.RasterXSize
+            height = input.RasterYSize
+
+            srs = osr.SpatialReference(input.GetProjectionRef())
+            if last_srs is not None and not srs.IsSame(last_srs) and opts.skipdiffsrs:
+                continue
+
+            ring = LinearRing([
+                (geotransform[0], geotransform[3]),
+                (geotransform[0], geotransform[3] + (geotransform[5] * height)),
+                (geotransform[0] + geotransform[1] * width, geotransform[3] + geotransform[5] * height),
+                (geotransform[0] + geotransform[1] * width, geotransform[3])
+            ])
+
+            polygon = Polygon(ring)
+
+            if timepattern is not None:
+                match = timepattern.match(source)
+                timevalue = timetemplate.format(*match.groups())
+
+            if timemap is not None:
+                timevalue = timemap[source]
+
+            source = path.abspath(source) if opts.abspath else source
+            record = {"geometry": mapping(polygon), "properties": {opts.timefield: timevalue, opts.tileindex: source}}
+            output.write(record)
+
+
+if __name__ == "__main__":
+    main()
