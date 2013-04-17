@@ -115,7 +115,16 @@ def main():
     if opts.timemap is not None:
         timemap = dict(line.strip().split(":", 1) for line in open(opts.timemap, "r"))
 
-    schema = {"geometry": "Polygon", "properties": {opts.tileindex: "str", opts.timefield: "date"}}
+    if opts.abspath:
+        sources = map(path.abspath, sources)
+
+    schema = {
+        "geometry": "Polygon",
+        "properties": {
+            opts.tileindex: "str:{0:d}".format(max(len(source) for source in sources)),
+            opts.timefield: "date"
+        }
+    }
 
     with collection(target, "w", opts.format, schema) as output:
         last_srs = None
@@ -146,7 +155,6 @@ def main():
             if timemap is not None:
                 timevalue = timemap[source]
 
-            source = path.abspath(source) if opts.abspath else source
             record = {"geometry": mapping(polygon), "properties": {opts.timefield: timevalue, opts.tileindex: source}}
             output.write(record)
 

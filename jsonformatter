@@ -1,0 +1,13 @@
+#!/usr/bin/env python
+
+"""(Re-)indent JSON from stdin and write it to stdout.
+
+Handy for webservices that return json as one big long string. With ``curl
+http://the.json.url/ | jsonformatter`` you can actually read it.
+"""
+
+import sys
+from json import dumps, loads
+
+
+print(dumps(loads(sys.stdin.read()), indent=4))
