@@ -11,10 +11,7 @@ import sys
 import os.path
 import optparse
 
-try:
-    from numpy import min, max, mean, std
-except ImportError:
-    from pymills.mathtools import mean, std
+from pymills.mathtools import mean, std
 
 from pymills.utils import getFiles
 

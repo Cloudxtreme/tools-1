@@ -1,7 +1,7 @@
 #!/Users/s2092651/bin/python
-# EASY-INSTALL-DEV-SCRIPT: 'spyda==0.0.2dev','extract'
-__requires__ = 'spyda==0.0.2dev'
-from pkg_resources import require; require('spyda==0.0.2dev')
+# EASY-INSTALL-DEV-SCRIPT: 'spyda==0.0.3.dev','extract'
+__requires__ = 'spyda==0.0.3.dev'
+from pkg_resources import require; require('spyda==0.0.3.dev')
 del require
 __file__ = '/Users/s2092651/work/spyda/scripts/extract'
 execfile(__file__)
