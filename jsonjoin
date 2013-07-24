@@ -6,6 +6,5 @@ from json import dumps, loads
 
 
 files = glob(sys.argv[1])
-print(repr(files))
 key = "result" if len(sys.argv) < 3 else sys.argv[2]
 sys.stdout.write("[{0:s}]".format(",".join([dumps({key: loads(open(file, "rb").read())}) for file in files])))
