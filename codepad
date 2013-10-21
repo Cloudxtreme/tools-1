@@ -3,6 +3,7 @@
 import sys
 from urllib import urlopen, urlencode
 
+
 def paste(code="", lang="Python"):
     data = {"code": code, "lang": lang, "submit": "Submit"}
     url = "http://codepad.org/"
