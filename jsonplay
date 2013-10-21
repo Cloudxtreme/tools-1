@@ -1,0 +1,6 @@
+#!/usr/bin/python -i
+
+import sys
+from json import loads
+
+xs = loads(open(sys.argv[1], "r").read())
