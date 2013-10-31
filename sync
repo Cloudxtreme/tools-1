@@ -1,0 +1,15 @@
+#!/bin/bash
+
+HOST=${1}
+TARGET=${2}
+
+test ! -d $TARGET && mkdir -p $TARGET
+test ! -d $TARGET/mnt && mkdir -p $TARGET/mnt
+
+ssh root@$HOST "tar --one-file-system --numeric-owner -czpf - /" > $TARGET/root.tar.gz
+ssh root@$HOST "tar --one-file-system --numeric-owner -czpf - /mnt/vdb1" > $TARGET/mnt/vdb1.tar.gz
+ssh root@$HOST "tar --one-file-system --numeric-owner -czpf - /opt" > $TARGET/opt.tar.gz
+
+#rsync -avz -H -X --one-file-system --numeric-ids --exclude-from=./exclude.txt -e ssh root@$HOST:/ $TARGET
+#rsync -avz -H -X --one-file-system --numeric-ids -e ssh root@$HOST:/mnt/vdb1/ $TARGET/vdb1/
+#rsync -avz -H -X --one-file-system --numeric-ids -e ssh root@$HOST:/opt/ $TARGET/opt/

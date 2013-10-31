@@ -1,0 +1,11 @@
+/tmp
+/sys
+/dev
+/proc
+/etc/lvm
+/etc/mtab
+/etc/udev
+/etc/blkid
+/lib/modules
+/opt
+/mnt/vdb1
