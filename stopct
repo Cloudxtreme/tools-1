@@ -1,0 +1,27 @@
+#!/usr/bin/env python
+
+import sys
+import time
+import logging
+logging.disable(logging.DEBUG)
+
+import proxmox
+
+ctid = sys.argv[1]
+
+# connect to one of the proxmox nodes and get authenticated
+c = proxmox.Connector("vz1")
+c.get_auth_token("root@pam", "p@ssw0rd1")
+
+# connect to the node you wish to perform actions on.
+node = proxmox.Node(c, "vz1")
+
+taskid = node.openvz(ctid).status.stop.post()
+
+# keep an eye on task and see when its completed
+while node.tasks(taskid).status()["status"] == "running":
+        time.sleep(1)
+
+# print out the logs
+for line in node.tasks(taskid).log():
+    print line["t"]
