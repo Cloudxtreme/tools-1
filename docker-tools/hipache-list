@@ -1,0 +1,7 @@
+#!/bin/bash
+
+DOMAIN="domain.tld"
+
+redis-cli -h hipache <<EOF
+keys *
+EOF

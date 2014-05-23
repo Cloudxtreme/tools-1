@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# Sets up a Docker Environment with the following components:
+#
+# - skydns  (https://index.docker.io/u/crosbymichael/skydns/)
+# - skydock (https://github.com/crosbymichael/skydock)
+# - hipache (https://index.docker.io/_/hipache/)
+
+
+DOMAIN="local"
+PREFIX="/var"
+NAMESERVER="8.8.8.8"
+SOCKET="${PREFIX}/run/docker.sock"
+
+IMAGE_SKYDNS="crosbymichael/skydns"
+IMAGE_SKYDOCK="crosbymichael/skydock"
+IMAGE_HIPACHE="prologic/hipache"
+
+# Spin up skydns
+echo "Spinning up skydns ..."
+docker run -d -p 0.0.0.0:53:53/udp --name skydns ${IMAGE_SKYDNS} -nameserver ${NAMESERVER}:53 -domain ${DOMAIN}
+sleep 5
+
+# Spin up skydock
+echo "Spinning up skydock ..."
+docker run -d -v ${SOCKET}:/docker.sock --name skydock --link skydns:skydns ${IMAGE_SKYDOCK} -ttl 30 -environment dev -s /docker.sock -domain ${DOMAIN}
+
+# Spin up hipache
+echo "Spinning up hipache ..."
+docker run -d --name hipache -p 80:80 ${IMAGE_HIPACHE}
+
+docker ps
+
+echo "ALL DONE!"

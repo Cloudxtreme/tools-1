@@ -1,0 +1,3 @@
+#!/bin/bash
+
+docker run -a stdin -a stdout -i --rm --link hipache:hipache prologic/redis-cli ${*}
