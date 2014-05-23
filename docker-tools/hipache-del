@@ -1,0 +1,10 @@
+#!/bin/bash
+
+ID=${1}
+DOMAIN="domain.tld"
+HOST="${ID}.${DOMAIN}"
+
+redis-cli -h hipache <<EOF
+del frontend:${HOST} ${ID}
+lrange frontend:${HOST} 0 -1
+EOF

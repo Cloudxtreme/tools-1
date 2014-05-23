@@ -1,0 +1,17 @@
+#!/bin/bash
+
+ID=${1}
+PORT=${2:-8000}
+
+
+IP=$(getent hosts ${ID} | awk '{print $1}')
+DOMAIN="domain.tld"
+HOST="${ID}.${DOMAIN}"
+
+
+redis-cli -h hipache <<EOF
+del frontend:${HOST} ${ID}
+rpush frontend:${HOST} ${ID}
+rpush frontend:${HOST} http://${IP}:${PORT}
+lrange frontend:${HOST} 0 -1
+EOF
