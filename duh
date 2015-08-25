@@ -1,3 +1,3 @@
 #!/bin/bash
 
-du -hcs *
+du -hcs * | sort -h -r
