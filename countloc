@@ -10,13 +10,15 @@ import os
 import sys
 import os.path
 import optparse
+from fnmatch import fnmatch
+from operator import itemgetter
 
 from pymills.mathtools import mean, std
 
 from pymills.utils import getFiles
 
-__version__ = "0.3"
-__copyright__ = "CopyRight (C) 2008-2011 by James Mills"
+__version__ = "0.4"
+__copyright__ = "CopyRight (C) 2008-2014 by James Mills"
 __author__ = "James Mills, prologic at shortcircuit dot net dot au"
 __url__ = "http://prologic.shortcircuit.net.au/"
 
@@ -24,74 +26,91 @@ USAGE = "%prog [options] <pattern>"
 VERSION = "%prog v" + __version__
 
 def parse_options():
-	"""parse_options() -> opts, args
+    """parse_options() -> opts, args
 
-	Parse and command-line options given returning both
-	the parsed options and arguments.
-	"""
+    Parse and command-line options given returning both
+    the parsed options and arguments.
+    """
 
-	parser = optparse.OptionParser(usage=USAGE, version=VERSION)
+    parser = optparse.OptionParser(usage=USAGE, version=VERSION)
 
-	parser.add_option("-v", "--verbose",
-			action="store_true", default=False, dest="verbose",
-			help="Verbose output during operation.")
-	parser.add_option("-p", "--path",
-			action="store", default=".", dest="path",
-			help="Set path to search.")
-	parser.add_option("-t", "--total",
-			action="store_true", default=False, dest="total",
-			help="Display total Lines of Code only.")
-	parser.add_option("-s", "--stats",
-			action="store_true", default=False, dest="stats",
-			help="Display file statistics and total Lines of Code.")
-	parser.add_option("-r", "--recursive",
-			action="store_true", default=False, dest="recursive",
-			help="Recursive mode")
+    parser.add_option("-v", "--verbose",
+            action="store_true", default=False, dest="verbose",
+            help="Verbose output during operation.")
+    parser.add_option("-I", "--ignore",
+            action="append", default=None, dest="ignore",
+            help="List of glob patterns to ignore")
+    parser.add_option("-p", "--path",
+            action="store", default=".", dest="path",
+            help="Set path to search.")
+    parser.add_option("-t", "--total",
+            action="store_true", default=False, dest="total",
+            help="Display total Lines of Code only.")
+    parser.add_option("-s", "--stats",
+            action="store_true", default=False, dest="stats",
+            help="Display file statistics and total Lines of Code.")
+    parser.add_option("-r", "--recursive",
+            action="store_true", default=False, dest="recursive",
+            help="Recursive mode")
 
-	opts, args = parser.parse_args()
-	if len(args) < 1:
-		parser.print_help()
-		raise SystemExit, 1
+    opts, args = parser.parse_args()
+    if len(args) < 1:
+        parser.print_help()
+        raise SystemExit, 1
 
-	return opts, args
+    return opts, args
 
 def getLOC(file):
-	return len(open(file, "r").readlines())
+    return len(open(file, "r").readlines())
 
 def main():
-	opts, args = parse_options()
+    opts, args = parse_options()
 
-	cwd = os.getcwd()
-	path = opts.path
-	pattern = args[0]
+    cwd = os.getcwd()
+    path = opts.path
+    pattern = args[0]
 
-	if path == ".":
-		path = os.getcwd()
-	
-	files = getFiles(path, pattern, recursive=opts.recursive, full=True)
+    if path == ".":
+        path = os.getcwd()
+    
+    def ignore(filename):
+        for ignore in (opts.ignore or []):
+            if fnmatch(filename, ignore):
+                return False
+        return True
 
-	total = 0
-	locs = []
-	for file in files:
-		loc = getLOC(file)
-		total += loc
-		locs.append(loc)
-		if opts.verbose:
-			filename = file.replace(cwd, ".")
-			print "%s: %d" % (filename, loc)
-	
-	if opts.verbose:
-		print
-	
-	if opts.total:
-		print "Files:    %d" % len(locs)
-		print "Total:    %d" % total
+    files = getFiles(
+        path, pattern, tests=[ignore], recursive=opts.recursive, full=True,
+    )
 
-	if opts.stats:
-		print "Min:      %d" % int(min(locs))
-		print "Mean:     %d" % int(mean(locs))
-		print "Max;      %d" % int(max(locs))
-		print "Std Dev.: %d" % int(std(locs))
+    total = 0
+    locs = {}
+    for file in files:
+        loc = getLOC(file)
+        total += loc
+        locs[file] = loc
+        if opts.verbose:
+            filename = file.replace(cwd, ".")
+            print "%s: %d" % (filename, loc)
+    
+    if opts.verbose:
+        print
+    
+    if opts.total:
+        print "Files:    %d" % len(locs)
+        print "Total:    %d" % total
+
+    if opts.stats:
+        print "Min:      %d" % int(min(locs.values()))
+        print "Mean:     %d" % int(mean(locs.values()))
+        print "Max;      %d" % int(max(locs.values()))
+        print "Std Dev.: %d" % int(std(locs.values()))
+
+        print
+        print "Top 5 largest:"
+        for file, loc in sorted(locs.items(), key=itemgetter(1), reverse=True)[:5]:
+            filename = file.replace(cwd, ".")
+            print "%s: %d" % (filename, loc)
 
 if __name__ == "__main__":
-	main()
+    main()
