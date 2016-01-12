@@ -1,0 +1,6 @@
+#!/bin/bash
+
+ifile=${1}
+ofile=${ifile%.*}.rst
+
+docker run -i -t -v $(pwd):/source jagregory/pandoc -f markdown_github -t rst -o ${ofile} ${ifile}
